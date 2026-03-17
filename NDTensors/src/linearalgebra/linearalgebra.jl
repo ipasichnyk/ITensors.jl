@@ -38,7 +38,8 @@ end
 function svd_catch_error(A; kwargs...)
     USV = try
         svd(expose(A); kwargs...)
-    catch
+    catch e
+        @error "svd_catch_error: SVD failed" exception=(e, catch_backtrace()) alg=get(kwargs, :alg, nothing) matrix_size=size(A) matrix_eltype=eltype(A) array_type=typeof(A)
         return nothing
     end
     return USV
@@ -89,29 +90,28 @@ function svd(
         min_blockdim = nothing
     ) where {ElT, IndsT}
     alg = replace_nothing(alg, default_svd_alg(T))
+    M = matrix(T)
     if alg == "divide_and_conquer"
-        MUSV = svd_catch_error(matrix(T); alg = LinearAlgebra.DivideAndConquer())
+        MUSV = svd_catch_error(M; alg = LinearAlgebra.DivideAndConquer())
         if isnothing(MUSV)
-            # If "divide_and_conquer" fails, try "qr_iteration"
+            @warn "SVD divide_and_conquer failed, trying qr_iteration" matrix_size=size(M) eltype=eltype(M) array_type=typeof(M)
             alg = "qr_iteration"
-            MUSV = svd_catch_error(matrix(T); alg = LinearAlgebra.QRIteration())
+            MUSV = svd_catch_error(M; alg = LinearAlgebra.QRIteration())
             if isnothing(MUSV)
-                # If "qr_iteration" fails, try "recursive"
-                alg = "recursive"
-                MUSV = svd_recursive(matrix(T))
+                @error "SVD qr_iteration also failed. Blocking recursive fallback to surface the error." matrix_size=size(M) eltype=eltype(M) array_type=typeof(M)
+                error("Both SVD algorithms (divide_and_conquer, qr_iteration) failed for $(typeof(M)) matrix of size $(size(M)) with eltype $(eltype(M)). Recursive fallback is disabled for debugging.")
             end
         end
     elseif alg == "qr_iteration"
-        MUSV = svd_catch_error(matrix(T); alg = LinearAlgebra.QRIteration())
+        MUSV = svd_catch_error(M; alg = LinearAlgebra.QRIteration())
         if isnothing(MUSV)
-            # If "qr_iteration" fails, try "recursive"
-            alg = "recursive"
-            MUSV = svd_recursive(matrix(T))
+            @error "SVD qr_iteration failed. Blocking recursive fallback to surface the error." matrix_size=size(M) eltype=eltype(M) array_type=typeof(M)
+            error("SVD qr_iteration failed for $(typeof(M)) matrix of size $(size(M)) with eltype $(eltype(M)). Recursive fallback is disabled for debugging.")
         end
     elseif alg == "recursive"
-        MUSV = svd_recursive(matrix(T))
+        MUSV = svd_recursive(M)
     elseif alg == "qr_algorithm" || alg == "jacobi_algorithm"
-        MUSV = svd_catch_error(matrix(T); alg)
+        MUSV = svd_catch_error(M; alg)
     else
         error(
             "svd algorithm $alg is not currently supported. Please see the documentation for currently supported algorithms."

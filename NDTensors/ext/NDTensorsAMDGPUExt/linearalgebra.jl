@@ -1,14 +1,13 @@
 using AMDGPU: ROCMatrix
 using Adapt: adapt
-using LinearAlgebra: svd
+using LinearAlgebra: LinearAlgebra, svd
 using NDTensors.AMDGPUExtensions: roc
-using NDTensors.Expose: Expose, Exposed, expose, ql, ql_positive
+using NDTensors.Expose: Expose, Exposed, expose, unexpose, ql, ql_positive
 using NDTensors.GPUArraysCoreExtensions: cpu
 using NDTensors.Vendored.TypeParameterAccessors: unwrap_array_type
 
 function LinearAlgebra.svd(A::Exposed{<:ROCMatrix}; kwargs...)
-    U, S, V = svd(cpu(A))
-    return roc.((U, S, V))
+    return svd(unexpose(A); alg=LinearAlgebra.QRIteration())
 end
 
 ## TODO currently AMDGPU doesn't have ql so make a ql function
