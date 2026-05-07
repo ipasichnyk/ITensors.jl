@@ -86,4 +86,5 @@ export
     random_orthog,
     random_unitary,
     Spectrum,
-    truncerror
+    truncerror,
+    gap_ratio
