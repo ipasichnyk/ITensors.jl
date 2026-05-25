@@ -9,5 +9,6 @@ include("default_kwargs.jl")
 include("linearalgebra.jl")
 include("mul.jl")
 include("permutedims.jl")
+include("memory_hooks.jl")
 
 end
