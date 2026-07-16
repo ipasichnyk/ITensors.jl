@@ -1,5 +1,5 @@
 import .Expose: ql, ql_positive, qr_positive
-using .RankFactorization: Spectrum
+using .RankFactorization: Spectrum, gap_ratio
 
 # TODO: Generalize this to any `Tensor` type using:
 # ```julia
@@ -137,8 +137,16 @@ function svd(
     else
         truncerr = 0.0
     end
-    spec = Spectrum(P, truncerr)
     dS = length(P)
+    # gap ratio: s_{χ+1}/s_χ — first discarded over last kept singular value.
+    # MS may be a GPU array; extract the two boundary values to CPU scalars.
+    _gr = if dS < length(MS)
+        MS_cpu = Array(MS[dS:dS+1])   # 2-element CPU vector, no full copy
+        MS_cpu[1] > 0 ? Float64(MS_cpu[2]) / Float64(MS_cpu[1]) : 0.0
+    else
+        0.0
+    end
+    spec = Spectrum(P, truncerr, typeof(truncerr)(_gr))
     if dS < length(MS)
         MU = expose(MU)[:, 1:dS]
         # Fails on some GPU backends like Metal.

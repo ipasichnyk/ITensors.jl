@@ -1,6 +1,6 @@
 using AMDGPU: AMDGPU, ROCMatrix
 using Adapt: adapt
-using LinearAlgebra: LinearAlgebra, svd
+using LinearAlgebra: LinearAlgebra, SVD, svd
 using NDTensors.Expose: Expose, Exposed, expose, ql, ql_positive
 using NDTensors.GPUArraysCoreExtensions: cpu
 using TypeParameterAccessors: unwrap_array_type
@@ -29,8 +29,10 @@ function _svd_jacobi(A::ROCMatrix)
     USV = try
         abstol = zero(real(eltype(A)))
         max_sweeps = Cint(100)
-        U, S, Vt, residual, n_sweeps, info = AMDGPU.rocSOLVER.gesvdj!(copy(A), abstol, max_sweeps)
-        (U, S, Vt)
+        # gesvdj! returns (U, S, V', ...) where V is (k×n) — V' is (n×k).
+        # SVD expects Vt of shape (k×n), so we adjoint again.
+        U, S, V, residual, n_sweeps, info = AMDGPU.rocSOLVER.gesvdj!(copy(A), abstol, max_sweeps)
+        SVD(U, S, V')
     catch
         return nothing
     end
